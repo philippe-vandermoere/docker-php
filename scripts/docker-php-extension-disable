@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+
+set -e
+
+readonly CURRENT_FOLDER=$(pwd)
+readonly PHP_INI_CONFIG_DIR=$(php -i |grep 'Scan this dir for additional .ini files' |awk -F "=> " '{print $2}')
+
+for extension in $@
+do
+    if [[ $(php -m | grep -c ${extension}) -eq 0 ]]; then
+        echo "The extension ${extension} is not enable."
+        continue
+    fi
+
+    if [[ -f "${PHP_INI_CONFIG_DIR}/${extension}.ini" ]]; then
+        rm -f ${PHP_INI_CONFIG_DIR}/${extension}.ini
+    else
+        echo "Unable to find extension config file ${PHP_INI_CONFIG_DIR}/${extension}.ini."
+        exit 1
+    fi
+done
+
+cd ${CURRENT_FOLDER}

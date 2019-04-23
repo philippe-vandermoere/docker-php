@@ -1,0 +1,105 @@
+#!/usr/bin/env sh
+
+set -e
+
+readonly extensions=$@
+readonly PHP_VERSION=${PHP_VERSION}
+readonly PHP_SRC_FOLDER=${PHP_SRC_FOLDER:-/usr/src/php}
+readonly CURRENT_FOLDER=$(pwd)
+readonly PHP_EXTENSION_DIR=$(php -r 'echo ini_get("extension_dir");')
+
+function get_extension_dependency() {
+    local extension=$1
+    
+    case ${extension} in
+        gd)
+            packages='libpng-dev libjpeg-turbo-dev freetype-dev'
+        ;;
+        intl)
+            packages=icu-dev
+        ;;
+        zip)
+            packages=libzip-dev
+        ;;
+        *)
+            packages=''
+        ;;
+    esac
+
+    echo "${packages}"
+}
+
+function get_configure_options() {
+    local extension=$1
+    
+    if [[ "${extension}" = "gd" ]]; then
+        echo '--with-freetype-dir=/usr/include --with-jpeg-dir=/usr/include --with-png-dir=/usr/include'
+    fi
+}
+
+function install_core_extension() {
+    local extension=$1
+
+    echo "Install core extension ${extension}."
+    cd ${PHP_SRC_DIR}/ext/${extension}
+    phpize
+    ./configure $(get_configure_options ${extension})
+    make -j $(nproc)
+    make install
+}
+
+function install_pecl_extension() {
+    local extension=$1
+
+    echo "Install pecl extension ${extension}."
+    pecl update-channels
+    pecl install -o ${extension}
+}
+
+install_extensions=''
+for extension in ${extensions}; do
+    if [[ $(php -m | grep -c ${extension}) -eq 1 ]] || [[ -f "${PHP_EXTENSION_DIR}/${extension}.so" ]]; then
+        echo "The extension ${extension} is already installed."
+    else 
+        if [[ -z ${install_extensions} ]]; then
+            install_extensions="${extension}"
+        else
+            install_extensions="${install_extensions} ${extension}"
+        fi
+    fi
+done
+
+# download php src if not exist
+if [[ ! -d ${PHP_SRC_DIR} ]]; then
+    clean_src=true
+    docker-php-download ${PHP_VERSION} ${PHP_SRC_DIR}
+fi
+
+# install dependency
+packages='autoconf coreutils g++ gcc make re2c'
+for extension in ${install_extensions}; do
+    extension_package=$(get_extension_dependency ${extension})
+    if [[ ! -z "${extension_package}" ]]; then
+        packages="${packages} ${extension_package}"
+    fi
+done 
+
+apk add --no-cache --virtual .docker-php-extension-install-deps ${packages}
+
+# install extension
+for extension in ${install_extensions}; do
+    if [[ -d ${PHP_SRC_DIR}/ext/${extension} ]]; then
+        install_core_extension ${extension}
+    else
+        install_pecl_extension ${extension}
+    fi
+done
+
+# clean install
+rm -rf ${PHP_SRC_DIR}
+apk del --no-network .docker-php-extension-install-deps
+
+# install extension dependency
+apk add --update --no-cache $(scanelf --needed --nobanner --format '%n#p' --recursive /usr/local | tr ',' '\n' | sort -u | awk '{ print "so:" $1 }')
+
+cd ${CURRENT_FOLDER}

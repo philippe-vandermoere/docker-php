@@ -1,0 +1,95 @@
+#!/usr/bin/env sh
+
+set -e
+
+readonly PHP_VERSION=$1
+readonly PHP_SRC_DIR="${2:-/usr/src/php}"
+readonly PHP_SRC_FORMAT=${3:-tar.xz}
+readonly PHP_SHA256=${4:-$(docker-php-sha256 ${PHP_VERSION} ${PHP_SRC_FORMAT})}
+readonly PHP_SRC_URL="https://www.php.net/distributions/php-${PHP_VERSION}.${PHP_SRC_FORMAT}"
+readonly PHP_SRC_URL_SIG=${PHP_SRC_URL}.asc
+readonly GPG_SERVER=ha.pool.sks-keyservers.net
+readonly TMP_DIR=$(mktemp -d)
+readonly CURRENT_FOLDER=$(pwd)
+
+function get_gpg_keys() {
+    local php_version=$1
+
+    case $(echo ${php_version} | awk -F"." '{print $1"."$2}') in
+        '7.1')
+            # Davey Shafik <davey@php.net>
+            echo 'A917B1ECDA84AEC2B568FED6F50ABC807BD5DCD0'
+            # Joe Watkins <krakjoe@php.net>
+            echo '528995BFEDFBA7191D46839EF9BA0ADA31CBD89E'
+            # Sara Golemon <pollita@php.net>
+            echo '1729F83938DA44E27BA0F4D3DBDB397470D12172'
+        ;;
+        '7.2')
+            # Sara Golemon <pollita@php.net>
+            echo '1729F83938DA44E27BA0F4D3DBDB397470D12172'
+            # Remi Collet <remi@php.net>
+            echo 'B1B44D8F021E4E2D6021E995DC9FF8D3EE5AF27F'
+            # Christoph M. Becker <cmb@php.net>
+            echo 'CBAF69F173A0FEA4B537F470D66C9593118BCCB6'
+        ;;
+        '7.3')
+            # Christoph M. Becker <cmb@php.net>
+            echo 'CBAF69F173A0FEA4B537F470D66C9593118BCCB6'
+            # Stanislav Malyshev (PHP key) <stas@php.net>
+            echo 'F38252826ACD957EF380D39F2F7956BC5DA04B5D'
+        ;;
+        *)
+            echo "Unsupported php version ${php_version}"
+            exit 1
+    esac
+}
+
+function install_depencency() {
+    local format=$1
+    local packages='ca-certificates curl gnupg openssl'
+
+    if [[ "${format}" = "tar.xz" ]]; then
+        packages="${packages} xz"
+    fi
+
+    apk add --no-cache --virtual .docker-php-download ${packages}
+}
+
+function get_tar_options() {
+    local format=$1
+
+    case ${format} in
+        'tar.bz2')
+            echo 'jxf'
+        ;;
+        'tar.gz')
+            echo 'zxf'
+        ;;
+        'tar.xz')
+            echo "Jxf"
+        ;;
+        *)
+            echo "Unsupported format ${format}"
+            exit 1
+    esac
+}
+
+install_depencency ${PHP_SRC_FORMAT}
+
+curl --fail -sL ${PHP_SRC_URL} -o ${TMP_DIR}/php.${PHP_SRC_FORMAT}
+echo "${PHP_SHA256:-$(get_php_sha256 ${PHP_VERSION} ${PHP_SRC_FORMAT})}  ${TMP_DIR}/php.${PHP_SRC_FORMAT}" | sha256sum -c
+
+curl -fail -sL ${PHP_SRC_URL_SIG} -o ${TMP_DIR}/php.${PHP_SRC_FORMAT}.asc
+export GNUPGHOME=${TMP_DIR}
+for key in $(get_gpg_keys ${PHP_VERSION}); do
+    gpg --batch --keyserver ${GPG_SERVER} --recv-keys ${key}
+done
+
+gpg --batch --verify ${TMP_DIR}/php.${PHP_SRC_FORMAT}.asc ${TMP_DIR}/php.${PHP_SRC_FORMAT}
+
+mkdir -p ${PHP_SRC_DIR}
+tar $(get_tar_options ${PHP_SRC_FORMAT}) ${TMP_DIR}/php.${PHP_SRC_FORMAT} -C ${PHP_SRC_DIR} --strip-components=1
+
+rm -rf ${TMP_DIR}
+
+apk del --no-network .docker-php-download

@@ -86,6 +86,8 @@ for key in $(get_gpg_keys ${PHP_VERSION}); do
 done
 
 gpg --batch --verify ${TMP_DIR}/php.${PHP_SRC_FORMAT}.asc ${TMP_DIR}/php.${PHP_SRC_FORMAT}
+# fix rm: can't remove '${TMP_DIR}/S.gpg-agent.extra': No such file or directory
+command -v gpgconf > /dev/null && gpgconf --kill all
 
 mkdir -p ${PHP_SRC_DIR}
 tar $(get_tar_options ${PHP_SRC_FORMAT}) ${TMP_DIR}/php.${PHP_SRC_FORMAT} -C ${PHP_SRC_DIR} --strip-components=1

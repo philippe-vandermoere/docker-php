@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+
+set -e
+
+readonly extensions=$@
+readonly CURRENT_FOLDER=$(pwd)
+readonly PHP_EXTENSION_DIR=$(php -r 'echo ini_get("extension_dir");')
+readonly PHP_INI_CONFIG_DIR=$(php -i |grep 'Scan this dir for additional .ini files' |awk -F "=> " '{print $2}')
+
+apk add --no-cache --virtual .docker-php-extension-enable-deps binutils
+
+for extension in ${extensions}
+do
+    if [[ $(php -m | grep -c ${extension}) -ne 0 ]]; then
+        echo "The extension ${extension} is already enable."
+        continue
+    fi
+
+    if [[ ! -f "${PHP_EXTENSION_DIR}/${extension}.so" ]]; then
+        echo "Unable to find extension ${extension} in directory ${PHP_EXTENSION_DIR} (extension is not installed correctly)."
+        exit 1
+    fi
+
+    if [[ $(readelf --wide --syms ${PHP_EXTENSION_DIR}/${extension}.so | grep -c 'zend_extension_entry') -ne 0 ]]; then
+        echo "Enable zend extension ${extension}."
+        echo "zend_extension=${extension}.so" > ${PHP_INI_CONFIG_DIR}/${extension}.ini;
+    else
+        echo "Enable extension ${extension}."
+        echo "extension=${extension}.so" > ${PHP_INI_CONFIG_DIR}/${extension}.ini;
+    fi
+done
+
+apk del --no-network .docker-php-extension-enable-deps
+
+cd ${CURRENT_FOLDER}

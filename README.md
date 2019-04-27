@@ -1,4 +1,6 @@
-# Docker-php
+# Docker-php 
+
+[![CircleCI](https://circleci.com/gh/philippe-vandermoere/docker-php/tree/master.svg?style=svg)](https://circleci.com/gh/philippe-vandermoere/docker-php/tree/master)
 
 ## Description
 Build une image docker PHP basée sur alpine contenant:

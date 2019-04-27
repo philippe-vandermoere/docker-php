@@ -1,0 +1,108 @@
+version: 2.1
+commands:
+    docker_login:
+        description: "Authenticate to docker registry"
+        parameters:
+            docker_registry:
+                type: string
+                default: docker.io
+            docker_login:
+                type: string
+            docker_password:
+                type: string
+        steps:
+            - run:
+                name: "Authenticate to registry << parameters.docker_registry >>"
+                command: echo << parameters.docker_password >> | docker login -u << parameters.docker_login >> --password-stdin << parameters.docker_registry >>
+
+    docker_build_push:
+        description: "Build docker image"
+        parameters:
+            alpine_version:
+                type: string
+            php_version:
+                type: string
+            php_extensions:
+                type: string
+            docker_repository:
+                type: string
+            docker_tag:
+                type: string
+        steps:
+            - restore_cache:
+                keys:
+                    - docker-v1-{{ .Branch }}
+                paths:
+                    - /caches
+            - run:
+                name: "Load docker cache"
+                command: |
+                    if [[ -f  /caches/docker.tar ]]; then \
+                        docker load -i /caches/docker.tar; \
+                    fi
+            - run:
+                name: "Docker build << parameters.docker_repository >>:<< parameters.docker_tag >>"
+                command: |
+                    docker build . \
+                        --build-arg ALPINE_VERSION=<< parameters.alpine_version >> \
+                        --build-arg PHP_VERSION=<< parameters.php_version >> \
+                        --build-arg PHP_EXTENSIONS='<< parameters.php_extensions >>' \
+                        -t << parameters.docker_repository >>:<< parameters.docker_tag >>
+            - run:
+                name: "Docker push << parameters.docker_repository >>:<< parameters.docker_tag >>"
+                command: |
+                    docker push << parameters.docker_repository >>:<< parameters.docker_tag >>
+            - run:
+                name: "Save Docker image layer cache"
+                command: |
+                    mkdir -p /caches
+                    docker save -o /caches/docker.tar << parameters.docker_repository >>:<< parameters.docker_tag >>
+            - save_cache:
+                key: docker-v1-{{ .Branch }}-{{ epoch }}
+                paths:
+                    - /caches
+
+jobs:
+    dockerhub:
+        docker:
+            - image: docker:18.09.5-git
+        working_directory: ~/repo
+        steps:
+            - checkout
+            - setup_remote_docker
+            - docker_login:
+                docker_login: ${DOCKERHUB_LOGIN}
+                docker_password: ${DOCKERHUB_PASSWORD}
+            - docker_build_push:
+                alpine_version: 3.9.3
+                php_version: 7.2.17
+                php_extensions: ''
+                docker_repository: wizphilippe/php
+                docker_tag: 7.2.17-alpine-3.9.3
+            - docker_build_push:
+                alpine_version: 3.9.3
+                php_version: 7.2.17
+                php_extensions: 'xdebug'
+                docker_repository: wizphilippe/php
+                docker_tag: 7.2.17-alpine-3.9.3-dev
+            - docker_build_push:
+                alpine_version: 3.9.3
+                php_version: 7.3.4
+                php_extensions: ''
+                docker_repository: wizphilippe/php
+                docker_tag: 7.3.4-alpine-3.9.3
+            - docker_build_push:
+                alpine_version: 3.9.3
+                php_version: 7.3.4
+                php_extensions: 'xdebug'
+                docker_repository: wizphilippe/php
+                docker_tag: 7.3.4-alpine-3.9.3-dev
+
+workflows:
+    version: 2.1
+    docker:
+        jobs:
+            - dockerhub:
+                filters:
+                    branches:
+                        only: master

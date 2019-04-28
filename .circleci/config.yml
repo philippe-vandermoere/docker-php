@@ -15,7 +15,75 @@ commands:
                 name: "Authenticate to registry << parameters.docker_registry >>"
                 command: echo << parameters.docker_password >> | docker login -u << parameters.docker_login >> --password-stdin << parameters.docker_registry >>
 
-    docker_build_push:
+    docker_load_cache:
+        description: "Load docker layers"
+        parameters:
+            cache_key:
+                type: string
+                default: docker
+            cache_folder:
+                type: string
+                default: /docker/caches
+        steps:
+            - restore_cache:
+                keys:
+                    - << parameters.cache_key >>
+                paths:
+                    - << parameters.cache_folder >>
+            - run:
+                name: "Load docker cache"
+                command: |
+                    if [[ -d << parameters.cache_folder >> ]]; then \
+                        for file in $(find << parameters.cache_folder >> -type f -name "*.tar.gz");do \
+                            zcat ${file} | docker load; \
+                        done; \
+                        for file in $(find << parameters.cache_folder >> -type f -name "*.tar");do \
+                            docker load -i ${file}; \
+                        done; \
+                    fi
+
+    docker_save_cache:
+        description: "Save docker layers"
+        parameters:
+            cache_key:
+                type: string
+                default: docker
+            cache_folder:
+                type: string
+                default: /docker/caches
+            compress:
+                type: boolean
+                default: true
+        steps:
+            - run: mkdir -p << parameters.cache_folder >>
+            - when:
+                condition: << parameters.compress >>
+                steps:
+                    - run: docker save $(docker images -a -q | tr '\n' ' ') | gzip > << parameters.cache_folder >>/docker.tar.gz
+            - unless:
+                condition: << parameters.cache_folder >>
+                steps:
+                    - run: docker save $(docker images -a -q | tr '\n' ' ') -o << parameters.cache_folder >>/docker.tar.gz
+            - save_cache:
+                key: << parameters.cache_key >>-{{ epoch }}
+                paths:
+                    - << parameters.cache_folder >>
+
+    docker_push:
+        description: "Push docker image"
+        parameters:
+            local_docker_tag:
+                type: string
+            docker_repository_tag:
+                type: string
+        steps:
+            - run:
+                name: "Docker push << parameters.docker_repository_tag >>"
+                command: |
+                    docker tag << parameters.local_docker_tag >> << parameters.docker_repository_tag >>
+                    docker push << parameters.docker_repository_tag >>
+
+    docker_build:
         description: "Build docker image"
         parameters:
             alpine_version:
@@ -24,85 +92,72 @@ commands:
                 type: string
             php_extensions:
                 type: string
-            docker_repository:
-                type: string
-            docker_tag:
+            local_docker_tag:
                 type: string
         steps:
-            - restore_cache:
-                keys:
-                    - docker-v1-{{ .Branch }}
-                paths:
-                    - /caches
             - run:
-                name: "Load docker cache"
-                command: |
-                    if [[ -f  /caches/docker.tar ]]; then \
-                        docker load -i /caches/docker.tar; \
-                    fi
-            - run:
-                name: "Docker build << parameters.docker_repository >>:<< parameters.docker_tag >>"
+                name: "Docker build << parameters.local_docker_tag >>"
                 command: |
                     docker build . \
                         --build-arg ALPINE_VERSION=<< parameters.alpine_version >> \
                         --build-arg PHP_VERSION=<< parameters.php_version >> \
                         --build-arg PHP_EXTENSIONS='<< parameters.php_extensions >>' \
-                        -t << parameters.docker_repository >>:<< parameters.docker_tag >>
-            - run:
-                name: "Docker push << parameters.docker_repository >>:<< parameters.docker_tag >>"
-                command: |
-                    docker push << parameters.docker_repository >>:<< parameters.docker_tag >>
-            - run:
-                name: "Save Docker image layer cache"
-                command: |
-                    mkdir -p /caches
-                    docker save -o /caches/docker.tar << parameters.docker_repository >>:<< parameters.docker_tag >>
-            - save_cache:
-                key: docker-v1-{{ .Branch }}-{{ epoch }}
-                paths:
-                    - /caches
+                        -t << parameters.local_docker_tag >>
 
-jobs:
-    dockerhub:
+executors:
+    docker:
         docker:
             - image: docker:18.09.5-git
         working_directory: ~/repo
+
+jobs:
+    dockerhub:
+        executor: docker
+        parameters:
+            alpine_version:
+                type: string
+            php_version:
+                type: string
         steps:
             - checkout
             - setup_remote_docker
             - docker_login:
                 docker_login: ${DOCKERHUB_LOGIN}
                 docker_password: ${DOCKERHUB_PASSWORD}
-            - docker_build_push:
-                alpine_version: 3.9.3
-                php_version: 7.2.17
+            - docker_load_cache:
+                cache_key: docker-<< parameters.php_version >>
+            - docker_build:
+                alpine_version: << parameters.alpine_version >>
+                php_version: << parameters.php_version >>
                 php_extensions: ''
-                docker_repository: wizphilippe/php
-                docker_tag: 7.2.17-alpine-3.9.3
-            - docker_build_push:
-                alpine_version: 3.9.3
-                php_version: 7.2.17
+                local_docker_tag: php:<< parameters.php_version >>-alpine-<< parameters.alpine_version >>
+            - docker_build:
+                alpine_version: << parameters.alpine_version >>
+                php_version: << parameters.php_version >>
                 php_extensions: 'xdebug'
-                docker_repository: wizphilippe/php
-                docker_tag: 7.2.17-alpine-3.9.3-dev
-            - docker_build_push:
-                alpine_version: 3.9.3
-                php_version: 7.3.4
-                php_extensions: ''
-                docker_repository: wizphilippe/php
-                docker_tag: 7.3.4-alpine-3.9.3
-            - docker_build_push:
-                alpine_version: 3.9.3
-                php_version: 7.3.4
-                php_extensions: 'xdebug'
-                docker_repository: wizphilippe/php
-                docker_tag: 7.3.4-alpine-3.9.3-dev
+                local_docker_tag: php:<< parameters.php_version >>-alpine-<< parameters.alpine_version >>-dev
+            - docker_push:
+                local_docker_tag: php:<< parameters.php_version >>-alpine-<< parameters.alpine_version >>
+                docker_repository_tag: wizphilippe/php:<< parameters.php_version >>-alpine-<< parameters.alpine_version >>
+            - docker_push:
+                local_docker_tag: php:<< parameters.php_version >>-alpine-<< parameters.alpine_version >>-dev
+                docker_repository_tag: wizphilippe/php:<< parameters.php_version >>-alpine-<< parameters.alpine_version >>-dev
+            - docker_save_cache:
+                cache_key: docker-<< parameters.php_version >>
 
 workflows:
     version: 2.1
     docker:
         jobs:
             - dockerhub:
+                alpine_version: 3.9.3
+                php_version: 7.2.17
+                filters:
+                    branches:
+                        only: master
+            - dockerhub:
+                alpine_version: 3.9.3
+                php_version: 7.3.4
                 filters:
                     branches:
                         only: master

@@ -89,7 +89,7 @@ FROM alpine:${ALPINE_VERSION}
 ARG ALPINE_VERSION
 ARG PHP_VERSION
 
-LABEL maintainer="Wizaplace INFRA <infra@wizacha.com>"
+LABEL maintainer="Philippe VANDERMOERE <philippe@wizaplace.com>"
 
 ENV ALPINE_VERSION=${ALPINE_VERSION} \
     PHP_VERSION=${PHP_VERSION} \

@@ -45,7 +45,7 @@ Build a alpine php docker image with:
 ## Installation
 
 ```
-composer require --dev symfony/dotenv
+composer require philippe-vandermoere/docker-php
 ```
 
 ## Usage

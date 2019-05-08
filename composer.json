@@ -1,0 +1,15 @@
+{
+    "name": "philippe-vandermoere/docker-php",
+    "description": "build php docker image.",
+    "type": "library",
+    "homepage": "https://github.com/philippe-vandermoere/docker-php",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Philippe VANDERMOERE",
+            "email": "philippe@wizaplace.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "bin": ["bin/docker-php"]
+}

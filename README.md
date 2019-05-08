@@ -2,10 +2,9 @@
 
 [![CircleCI](https://circleci.com/gh/philippe-vandermoere/docker-php/tree/master.svg?style=svg)](https://circleci.com/gh/philippe-vandermoere/docker-php/tree/master)
 
-## Description
-Build une image docker PHP basée sur alpine contenant:
-- La version de php passée en argument
-- Les extensions PHP de base:
+Build a alpine php docker image with: 
+- php
+- The default php extensions:
     - ctype
     - curl
     - date
@@ -38,28 +37,33 @@ Build une image docker PHP basée sur alpine contenant:
     - xmlreader
     - xmlwriter
     - zlib
-- Les extensions PHP passées en argument:
 - composer
-- bash (avec auto-complete + alias)
+- bash
 - git
 - user: www-data
 
-## Exemples:
+## Installation
+
+```
+composer require --dev symfony/dotenv
+```
+
+## Usage
+
+php 7.3.4 with xdebug, gd
+
+```
+./vendor/bin/docker-php --version 7.3.4 --extensions 'gd xdebug' --alpine-version 3.9.3 -t php_custom:7.3.4-dev
+```
+
+php 7.3.4 with gd
+
+```
+./vendor/bin/docker-php --version 7.3.4 --extensions gd --alpine-version 3.9.3 -t php_custom:7.3.4
+```
 
 php 7.2.17
 
 ```
-docker build . \
-    --build-arg ALPINE_VERSION=3.9.3 \
-    --build-arg PHP_VERSION=7.2.17 \
-    --build-arg PHP_EXTENSIONS='curl intl gd opcache'
-```
-
-php 7.3.4
-
-```
-docker build . \
-    --build-arg ALPINE_VERSION=3.9.3 \
-    --build-arg PHP_VERSION=7.3.4 \
-    --build-arg PHP_EXTENSIONS=''
+./vendor/bin/docker-php --version 7.2.17 -t php_custom:7.2.17
 ```

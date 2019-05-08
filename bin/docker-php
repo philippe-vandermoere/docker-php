@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+
+set -e
+
+readonly DOCKER_CONTEXT=$(realpath $(dirname $(realpath $0))/..)
+
+show_help () {
+    cat << EOF
+Build your docker php image
+
+Options:
+    --version string            Version of php
+    --extensions string         Define the php extensions (default: '')
+    --alpine-version string     Version of alpine (default: latest)
+    -t, --docker-tag string     Define the docker tag of your image (default: docker-php:{PHP_VERSION})
+    -h, --help                  Show help
+    
+Usage:
+    docker-php --version 7.2.17
+    docker-php --version 7.2.17 --extensions 'curl gd' --alpine-version 3.9.3 -t docker-php:7.2.17
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            show_help
+            exit 0
+        ;;
+        --alpine-version|--version|--extensions|-t|--docker-tag)
+            parameter=$1
+            shift
+            if [[ $# -gt 0 ]]; then
+                value=$1
+            else
+                echo "flag needs an argument ${parameter}."
+                exit 1
+            fi
+            shift
+
+            case "${parameter}" in
+                --alpine-version)
+                    ALPINE_VERSION=${value}
+                ;;
+                --version)
+                    PHP_VERSION=${value}
+                ;;
+                --extensions)
+                    PHP_EXTENSIONS=${value}
+                ;;
+                -t|--docker-tag)
+                    DOCKER_TAG=${value}
+                ;;
+            esac
+        ;;
+        *)
+            shift
+        ;;
+    esac
+done
+
+if [[ -z ${PHP_VERSION} ]]; then
+    echo 'Require php version.'
+    show_help
+    exit 1
+fi
+
+docker build ${DOCKER_CONTEXT} \
+    -q \
+    --build-arg ALPINE_VERSION=${ALPINE_VERSION:-latest} \
+    --build-arg PHP_VERSION=${PHP_VERSION} \
+    --build-arg PHP_EXTENSIONS="${PHP_EXTENSIONS:-}" \
+    -t ${DOCKER_TAG:-docker-php:${PHP_VERSION}}
+
+echo "Docker image: ${DOCKER_TAG:-docker-php:${PHP_VERSION}}"

@@ -27,7 +27,7 @@ RUN set -xe; \
     mkdir -p ${PHP_INI_CONFIG_DIR}; \
     apk add --no-cache --virtual .build-deps \
         autoconf \
-        argon2-dev \
+        $(if [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" != "5.6" ]] && [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" = "7.0" ]];then echo 'argon2-dev';fi) \
         coreutils \
         curl-dev \
         dpkg \
@@ -54,7 +54,7 @@ RUN set -xe; \
         --enable-ftp \
         --enable-mbstring \
         --enable-mysqlnd \
-        --with-password-argon2 \
+        $(if [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" != "5.6" ]] && [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" = "7.0" ]];then echo '--with-password-argon2';fi) \
         --with-curl \
         --with-libedit \
         --with-openssl \
@@ -91,7 +91,8 @@ ARG PHP_VERSION
 
 LABEL maintainer="Philippe VANDERMOERE <philippe@wizaplace.com>"
 
-ENV ALPINE_VERSION=${ALPINE_VERSION} \
+ENV DOCKER=docker-php \
+    ALPINE_VERSION=${ALPINE_VERSION} \
     PHP_VERSION=${PHP_VERSION} \
     PHP_INI_CONFIG_DIR=/usr/local/etc/php/conf.d \
     PHP_FPM_CONFIG_DIR=/usr/local/etc/php-fpm.d \
@@ -140,6 +141,8 @@ COPY --chown=www-data:www-data configs/.bashrc /var/www/.bashrc
 USER www-data
 
 WORKDIR /var/www/html
+
+STOPSIGNAL SIGQUIT
 
 CMD ["php-fpm"]
 

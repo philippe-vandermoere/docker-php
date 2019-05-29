@@ -3,12 +3,13 @@
 set -e
 
 readonly extensions=$@
+readonly PHP_SRC_DIR=${PHP_SRC_DIR}
 readonly PHP_VERSION=${PHP_VERSION}
 readonly PHP_SRC_FOLDER=${PHP_SRC_FOLDER:-/usr/src/php}
 readonly CURRENT_FOLDER=$(pwd)
 readonly PHP_EXTENSION_DIR=$(php -r 'echo ini_get("extension_dir");')
 
-function get_extension_dependency() {
+get_extension_dependency() {
     local extension=$1
     
     case ${extension} in
@@ -17,6 +18,9 @@ function get_extension_dependency() {
         ;;
         intl)
             packages=icu-dev
+        ;;
+        sqlsrv)
+            packages=unixodbc-dev
         ;;
         zip)
             packages=libzip-dev
@@ -29,7 +33,7 @@ function get_extension_dependency() {
     echo "${packages}"
 }
 
-function get_configure_options() {
+get_configure_options() {
     local extension=$1
     
     if [[ "${extension}" = "gd" ]]; then
@@ -37,7 +41,7 @@ function get_configure_options() {
     fi
 }
 
-function install_core_extension() {
+install_core_extension() {
     local extension=$1
 
     echo "Install core extension ${extension}."
@@ -48,7 +52,7 @@ function install_core_extension() {
     make install
 }
 
-function install_pecl_extension() {
+install_pecl_extension() {
     local extension=$1
 
     echo "Install pecl extension ${extension}."
@@ -71,7 +75,6 @@ done
 
 # download php src if not exist
 if [[ ! -d ${PHP_SRC_DIR} ]]; then
-    clean_src=true
     docker-php-download ${PHP_VERSION} ${PHP_SRC_DIR}
 fi
 

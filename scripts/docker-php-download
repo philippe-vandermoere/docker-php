@@ -5,18 +5,46 @@ set -e
 readonly PHP_VERSION=$1
 readonly PHP_SRC_DIR="${2:-/usr/src/php}"
 readonly PHP_SRC_FORMAT=${3:-tar.xz}
-readonly PHP_SHA256=${4:-$(docker-php-sha256 ${PHP_VERSION} ${PHP_SRC_FORMAT})}
+readonly PHP_SHA256_URL=https://www.php.net/releases/?json\&version=${PHP_VERSION}
 readonly PHP_SRC_URL="https://www.php.net/distributions/php-${PHP_VERSION}.${PHP_SRC_FORMAT}"
 readonly PHP_SRC_URL_SIG=${PHP_SRC_URL}.asc
-readonly GPG_SERVER=ha.pool.sks-keyservers.net
+readonly GPG_SERVER1=ha.pool.sks-keyservers.net
+readonly GPG_SERVER2=keyserver.pgp.com
+readonly GPG_SERVER3=ha.pool.sks-keyservers.net
 readonly TMP_DIR=$(mktemp -d)
 readonly CURRENT_FOLDER=$(pwd)
 
-function get_gpg_keys() {
+get_sha256() {
+    local format=$1
+    local sha256
+
+    sha256=$(curl --fail -sL ${PHP_SHA256_URL} | jq -r '.source | .[] | select(.filename | contains("'${format}'")) | .sha256')
+    if [[ -z ${sha256} ]]; then
+        echo "Unable to get SHA256 for version ${PHP_VERSION} and format ${format}."
+        exit 1
+    fi
+
+    echo ${sha256}
+}
+
+get_gpg_keys() {
     local php_version=$1
 
-    case $(echo ${php_version} | awk -F"." '{print $1"."$2}') in
-        '7.1')
+    # see https://www.php.net/gpg-keys.php
+    case $(echo ${php_version} | awk -F "." '{print $1"."$2}') in
+        5.6)
+            # Ferenc Kovacs <tyrael@php.net>
+            echo '6E4F6AB321FDC07F2C332E3AC2BF0BC433CFC8B3'
+            # Julien Pauli <jpauli@php.net>
+            echo '0BD78B5F97500D450838F95DFE857D9A90D90EC1'
+        ;;
+        7.0)
+            # Anatol Belski <ab@php.net>
+            echo '1A4E8B7277C42E53DBA9C7B9BCAA30EA9C0D5763'
+            # Ferenc Kovacs <tyrael@php.net>
+            echo '6E4F6AB321FDC07F2C332E3AC2BF0BC433CFC8B3'
+        ;;
+        7.1)
             # Davey Shafik <davey@php.net>
             echo 'A917B1ECDA84AEC2B568FED6F50ABC807BD5DCD0'
             # Joe Watkins <krakjoe@php.net>
@@ -24,7 +52,7 @@ function get_gpg_keys() {
             # Sara Golemon <pollita@php.net>
             echo '1729F83938DA44E27BA0F4D3DBDB397470D12172'
         ;;
-        '7.2')
+        7.2)
             # Sara Golemon <pollita@php.net>
             echo '1729F83938DA44E27BA0F4D3DBDB397470D12172'
             # Remi Collet <remi@php.net>
@@ -32,11 +60,17 @@ function get_gpg_keys() {
             # Christoph M. Becker <cmb@php.net>
             echo 'CBAF69F173A0FEA4B537F470D66C9593118BCCB6'
         ;;
-        '7.3')
+        7.3)
             # Christoph M. Becker <cmb@php.net>
             echo 'CBAF69F173A0FEA4B537F470D66C9593118BCCB6'
             # Stanislav Malyshev (PHP key) <stas@php.net>
             echo 'F38252826ACD957EF380D39F2F7956BC5DA04B5D'
+        ;;
+        7.4)
+            # Derick Rethans <derick@php.net>
+            echo 'A78F717F0793F15F628533923A6F9E8127D30399'
+            # Peter Kokot <petk@php.net>
+            echo '42670A7FE4D0441C8E4632349E4FDC074A4EF02D'
         ;;
         *)
             echo "Unsupported php version ${php_version}"
@@ -44,9 +78,9 @@ function get_gpg_keys() {
     esac
 }
 
-function install_depencency() {
+install_dependency() {
     local format=$1
-    local packages='ca-certificates curl gnupg openssl'
+    local packages='ca-certificates curl gnupg openssl jq'
 
     if [[ "${format}" = "tar.xz" ]]; then
         packages="${packages} xz"
@@ -55,7 +89,7 @@ function install_depencency() {
     apk add --no-cache --virtual .docker-php-download ${packages}
 }
 
-function get_tar_options() {
+get_tar_options() {
     local format=$1
 
     case ${format} in
@@ -74,18 +108,21 @@ function get_tar_options() {
     esac
 }
 
-install_depencency ${PHP_SRC_FORMAT}
+install_dependency ${PHP_SRC_FORMAT}
 
 curl --fail -sL ${PHP_SRC_URL} -o ${TMP_DIR}/php.${PHP_SRC_FORMAT}
-echo "${PHP_SHA256:-$(get_php_sha256 ${PHP_VERSION} ${PHP_SRC_FORMAT})}  ${TMP_DIR}/php.${PHP_SRC_FORMAT}" | sha256sum -c
+echo "$(get_sha256 ${PHP_SRC_FORMAT})  ${TMP_DIR}/php.${PHP_SRC_FORMAT}" | sha256sum -c
 
 curl -fail -sL ${PHP_SRC_URL_SIG} -o ${TMP_DIR}/php.${PHP_SRC_FORMAT}.asc
 export GNUPGHOME=${TMP_DIR}
 for key in $(get_gpg_keys ${PHP_VERSION}); do
-    gpg --batch --keyserver ${GPG_SERVER} --recv-keys ${key}
+    gpg --batch --keyserver ${GPG_SERVER1} --recv-keys ${key} || \
+    gpg --batch --keyserver ${GPG_SERVER2} --recv-keys ${key} || \
+    gpg --batch --keyserver ${GPG_SERVER3} --recv-keys ${key} ;
 done
 
 gpg --batch --verify ${TMP_DIR}/php.${PHP_SRC_FORMAT}.asc ${TMP_DIR}/php.${PHP_SRC_FORMAT}
+
 # fix rm: can't remove '${TMP_DIR}/S.gpg-agent.extra': No such file or directory
 command -v gpgconf > /dev/null && gpgconf --kill all
 

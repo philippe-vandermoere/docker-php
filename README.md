@@ -42,28 +42,22 @@ Build a alpine php docker image with:
 - git
 - user: www-data
 
-## Installation
-
-```
-composer require philippe-vandermoere/docker-php
-```
-
 ## Usage
 
-php 7.3.4 with xdebug, gd
+php 7.3.5 with xdebug, gd
 
 ```
-./vendor/bin/docker-php --version 7.3.4 --extensions 'gd xdebug' --alpine-version 3.9.3 -t php_custom:7.3.4-dev
+./bin/docker-php --version 7.3.5 --extensions 'gd xdebug' -t php_custom:7.3.5-dev
 ```
 
-php 7.3.4 with gd
+php 7.3.5 with gd
 
 ```
-./vendor/bin/docker-php --version 7.3.4 --extensions gd --alpine-version 3.9.3 -t php_custom:7.3.4
+./bin/docker-php --version 7.3.5 --extensions gd -t php_custom:7.3.5
 ```
 
 php 7.2.17
 
 ```
-./vendor/bin/docker-php --version 7.2.17 -t php_custom:7.2.17
+./bin/docker-php --version 7.2.17 -t php_custom:7.2.17
 ```

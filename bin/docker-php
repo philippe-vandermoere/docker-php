@@ -11,13 +11,12 @@ Build your docker php image
 Options:
     --version string            Version of php
     --extensions string         Define the php extensions (default: '')
-    --alpine-version string     Version of alpine (default: latest)
     -t, --docker-tag string     Define the docker tag of your image (default: docker-php:{PHP_VERSION})
     -h, --help                  Show help
-    
+    -v, --verbose               Make the operation more talkative
 Usage:
-    docker-php --version 7.2.17
-    docker-php --version 7.2.17 --extensions 'curl gd' --alpine-version 3.9.3 -t docker-php:7.2.17
+    docker-php --version 7.3.5
+    docker-php --version 7.3.5 --extensions 'curl gd' -t docker-php:7.3.5
 EOF
 }
 
@@ -27,7 +26,11 @@ while [[ $# -gt 0 ]]; do
             show_help
             exit 0
         ;;
-        --alpine-version|--version|--extensions|-t|--docker-tag)
+        -v|--verbose)
+            verbose=true
+            shift
+        ;;
+        --version|--extensions|-t|--docker-tag)
             parameter=$1
             shift
             if [[ $# -gt 0 ]]; then
@@ -65,9 +68,21 @@ if [[ -z ${PHP_VERSION} ]]; then
     exit 1
 fi
 
+case $(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}') in
+    5.6|7.0)
+        ALPINE_VERSION=3.7
+    ;;
+    7.1|7.2|7.3|7.4)
+        ALPINE_VERSION=3.9
+    ;;
+    *)
+        echo "Unsupported php version ${PHP_VERSION}"
+        exit 1
+esac
+
 docker build ${DOCKER_CONTEXT} \
-    -q \
-    --build-arg ALPINE_VERSION=${ALPINE_VERSION:-latest} \
+    $(if [[ -z ${verbose} ]]; then echo '-q';fi) \
+    --build-arg ALPINE_VERSION=${ALPINE_VERSION} \
     --build-arg PHP_VERSION=${PHP_VERSION} \
     --build-arg PHP_EXTENSIONS="${PHP_EXTENSIONS:-}" \
     -t ${DOCKER_TAG:-docker-php:${PHP_VERSION}}

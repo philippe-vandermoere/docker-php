@@ -86,8 +86,6 @@ commands:
     docker_build:
         description: "Build docker image"
         parameters:
-            alpine_version:
-                type: string
             php_version:
                 type: string
             php_extensions:
@@ -98,11 +96,11 @@ commands:
             - run:
                 name: "Docker build << parameters.local_docker_tag >>"
                 command: |
-                    docker build . \
-                        --build-arg ALPINE_VERSION=<< parameters.alpine_version >> \
-                        --build-arg PHP_VERSION=<< parameters.php_version >> \
-                        --build-arg PHP_EXTENSIONS='<< parameters.php_extensions >>' \
-                        -t << parameters.local_docker_tag >>
+                    bin/docker-php \
+                        --version '<< parameters.php_version >>' \
+                        --extensions '<< parameters.php_extensions >>' \
+                        --docker-tag '<< parameters.local_docker_tag >>' \
+                        --verbose
 
 executors:
     docker:
@@ -114,8 +112,6 @@ jobs:
     dockerhub:
         executor: docker
         parameters:
-            alpine_version:
-                type: string
             php_version:
                 type: string
         steps:
@@ -127,21 +123,19 @@ jobs:
             - docker_load_cache:
                 cache_key: docker-<< parameters.php_version >>
             - docker_build:
-                alpine_version: << parameters.alpine_version >>
                 php_version: << parameters.php_version >>
                 php_extensions: ''
-                local_docker_tag: php:<< parameters.php_version >>-alpine-<< parameters.alpine_version >>
+                local_docker_tag: php:<< parameters.php_version >>
             - docker_build:
-                alpine_version: << parameters.alpine_version >>
                 php_version: << parameters.php_version >>
                 php_extensions: 'xdebug'
-                local_docker_tag: php:<< parameters.php_version >>-alpine-<< parameters.alpine_version >>-dev
+                local_docker_tag: php:<< parameters.php_version >>-dev
             - docker_push:
-                local_docker_tag: php:<< parameters.php_version >>-alpine-<< parameters.alpine_version >>
-                docker_repository_tag: wizphilippe/php:<< parameters.php_version >>-alpine-<< parameters.alpine_version >>
+                local_docker_tag: php:<< parameters.php_version >>
+                docker_repository_tag: wizphilippe/php:<< parameters.php_version >>
             - docker_push:
-                local_docker_tag: php:<< parameters.php_version >>-alpine-<< parameters.alpine_version >>-dev
-                docker_repository_tag: wizphilippe/php:<< parameters.php_version >>-alpine-<< parameters.alpine_version >>-dev
+                local_docker_tag: php:<< parameters.php_version >>-dev
+                docker_repository_tag: wizphilippe/php:<< parameters.php_version >>-dev
             - docker_save_cache:
                 cache_key: docker-<< parameters.php_version >>
 
@@ -150,14 +144,27 @@ workflows:
     docker:
         jobs:
             - dockerhub:
-                alpine_version: 3.9.3
-                php_version: 7.2.17
+                php_version: 5.6.39
                 filters:
                     branches:
                         only: master
             - dockerhub:
-                alpine_version: 3.9.3
-                php_version: 7.3.4
+                php_version: 7.0.33
+                filters:
+                    branches:
+                        only: master
+            - dockerhub:
+                php_version: 7.1.29
+                filters:
+                    branches:
+                        only: master
+            - dockerhub:
+                php_version: 7.2.18
+                filters:
+                    branches:
+                        only: master
+            - dockerhub:
+                php_version: 7.3.5
                 filters:
                     branches:
                         only: master

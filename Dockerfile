@@ -27,7 +27,7 @@ RUN set -xe; \
     mkdir -p ${PHP_INI_CONFIG_DIR}; \
     apk add --no-cache --virtual .build-deps \
         autoconf \
-        $(if [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" != "5.6" ]] && [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" = "7.0" ]];then echo 'argon2-dev';fi) \
+        $(if [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" != "5.6" ]] && [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" != "7.0" ]] && [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" != "7.1" ]]; then echo 'argon2-dev';fi) \
         coreutils \
         curl-dev \
         dpkg \
@@ -54,7 +54,7 @@ RUN set -xe; \
         --enable-ftp \
         --enable-mbstring \
         --enable-mysqlnd \
-        $(if [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" != "5.6" ]] && [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" = "7.0" ]];then echo '--with-password-argon2';fi) \
+        $(if [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" != "5.6" ]] && [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" != "7.0" ]] && [[ "$(echo ${PHP_VERSION} | awk -F "." '{print $1"."$2}')" != "7.1" ]]; then echo '--with-password-argon2';fi) \
         --with-curl \
         --with-libedit \
         --with-openssl \

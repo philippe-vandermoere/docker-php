@@ -1,6 +1,3 @@
-.circleci
-.gitignore
-LICENCE
-README.md
-vendor
-bin
+*
+!/configs
+!/scripts

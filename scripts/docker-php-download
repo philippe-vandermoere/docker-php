@@ -9,8 +9,9 @@ readonly PHP_SHA256_URL=https://www.php.net/releases/?json\&version=${PHP_VERSIO
 readonly PHP_SRC_URL="https://www.php.net/distributions/php-${PHP_VERSION}.${PHP_SRC_FORMAT}"
 readonly PHP_SRC_URL_SIG=${PHP_SRC_URL}.asc
 readonly GPG_SERVER1=ha.pool.sks-keyservers.net
-readonly GPG_SERVER2=keyserver.pgp.com
+readonly GPG_SERVER2=ipv4.pool.sks-keyservers.net
 readonly GPG_SERVER3=ha.pool.sks-keyservers.net
+readonly GPG_SERVER4=keyserver.pgp.com
 readonly TMP_DIR=$(mktemp -d)
 readonly CURRENT_FOLDER=$(pwd)
 
@@ -118,7 +119,8 @@ export GNUPGHOME=${TMP_DIR}
 for key in $(get_gpg_keys ${PHP_VERSION}); do
     gpg --batch --keyserver ${GPG_SERVER1} --recv-keys ${key} || \
     gpg --batch --keyserver ${GPG_SERVER2} --recv-keys ${key} || \
-    gpg --batch --keyserver ${GPG_SERVER3} --recv-keys ${key} ;
+    gpg --batch --keyserver ${GPG_SERVER3} --recv-keys ${key} || \
+    gpg --batch --keyserver ${GPG_SERVER4} --recv-keys ${key}
 done
 
 gpg --batch --verify ${TMP_DIR}/php.${PHP_SRC_FORMAT}.asc ${TMP_DIR}/php.${PHP_SRC_FORMAT}

@@ -54,10 +54,21 @@ install_core_extension() {
 
 install_pecl_extension() {
     local extension=$1
+    local php_version=$2
+    local pecl_package=${extension}
+
+    # fix pecl/xdebug requires PHP (version >= 7.0.0), installed version is 5.6.39
+    if [[ $(echo ${php_version} | awk -F "." '{print $1}') -eq 5 ]]; then
+        case ${extension} in
+            xdebug)
+                pecl_package=xdebug-2.5.5
+            ;;
+        esac
+    fi
 
     echo "Install pecl extension ${extension}."
     pecl update-channels
-    pecl install -o ${extension}
+    pecl install -o ${pecl_package}
 }
 
 install_extensions=''
@@ -94,7 +105,7 @@ for extension in ${install_extensions}; do
     if [[ -d ${PHP_SRC_DIR}/ext/${extension} ]]; then
         install_core_extension ${extension}
     else
-        install_pecl_extension ${extension}
+        install_pecl_extension ${extension} ${PHP_VERSION}
     fi
 done
 

@@ -144,26 +144,31 @@ workflows:
     docker:
         jobs:
             - dockerhub:
+                name: dockerhub_5.6.39
                 php_version: 5.6.39
                 filters:
                     branches:
                         only: master
             - dockerhub:
+                name: dockerhub_7.0.33
                 php_version: 7.0.33
                 filters:
                     branches:
                         only: master
             - dockerhub:
+                name: dockerhub_7.1.29
                 php_version: 7.1.29
                 filters:
                     branches:
                         only: master
             - dockerhub:
+                name: dockerhub_7.2.18
                 php_version: 7.2.18
                 filters:
                     branches:
                         only: master
             - dockerhub:
+                name: dockerhub_7.3.5
                 php_version: 7.3.5
                 filters:
                     branches:

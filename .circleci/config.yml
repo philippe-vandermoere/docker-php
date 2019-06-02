@@ -156,20 +156,20 @@ workflows:
                     branches:
                         only: master
             - dockerhub:
-                name: dockerhub_7.1.29
-                php_version: 7.1.29
+                name: dockerhub_7.1.30
+                php_version: 7.1.30
                 filters:
                     branches:
                         only: master
             - dockerhub:
-                name: dockerhub_7.2.18
-                php_version: 7.2.18
+                name: dockerhub_7.2.19
+                php_version: 7.2.19
                 filters:
                     branches:
                         only: master
             - dockerhub:
-                name: dockerhub_7.3.5
-                php_version: 7.3.5
+                name: dockerhub_7.3.6
+                php_version: 7.3.6
                 filters:
                     branches:
                         only: master
